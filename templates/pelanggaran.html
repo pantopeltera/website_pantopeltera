@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pelanggaran - PANTOPELTERA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        #sidebar { transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .sidebar-closed { transform: translateX(-100%); position: absolute; }
+        
+        .dashboard-bg { 
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.75)), 
+                url("{{ url_for('static', filename='img/background-itera.jpg') }}");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-white text-slate-800 h-screen overflow-hidden flex dashboard-bg">
+
+    <div id="sidebar" class="w-72 bg-[#0f172a] text-white p-8 flex flex-col space-y-8 z-50 shadow-2xl shrink-0 h-screen transition-all">
+        <div class="flex justify-between items-center">
+            <div class="flex items-center space-x-2 text-teal-400">
+                <div class="w-2 h-2 bg-teal-400 rounded-full animate-pulse"></div>
+                <span class="text-[10px] font-bold tracking-[0.2em] uppercase">PANTOPELTERA</span>
+            </div>
+            <button onclick="toggleSidebar()" class="text-slate-400 hover:text-white text-2xl font-light">&times;</button>
+        </div>
+
+        <nav class="flex-1 space-y-2">
+            <p class="text-slate-500 text-[10px] font-bold tracking-widest uppercase mb-4">Main Menu</p>
+            <a href="/dashboard" class="flex items-center space-x-3 p-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all">
+                <span>🏠</span> <span>Dashboard</span>
+            </a>
+            <a href="/monitoring" class="flex items-center space-x-3 p-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all">
+                <span>📹</span> <span>Live Monitoring</span>
+            </a>
+            <a href="/pelanggaran" class="flex items-center space-x-3 p-3 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20 shadow-lg">
+                <span>🚨</span> <span class="font-bold">Pelanggaran</span>
+            </a>
+            <a href="/grafik" class="flex items-center space-x-3 p-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all">
+                <span>📊</span> <span>Statistik</span>
+            </a>
+        </nav>
+
+        <div class="pt-8 border-t border-slate-800">
+            <a href="/profil" class="flex items-center space-x-3 p-3 bg-slate-800/50 rounded-2xl border border-slate-700/50 hover:bg-slate-700/50 group transition-all">
+                <div class="w-10 h-10 bg-gradient-to-tr from-teal-500 to-emerald-400 rounded-lg flex items-center justify-center font-bold text-white shadow-lg group-hover:scale-105 transition-transform">A</div>
+                <div class="flex-1">
+                    <p class="text-sm font-bold text-white">Admin ITERA</p>
+                    <p class="text-[10px] text-slate-500 italic">Bundaran Asrama</p>
+                </div>
+                <span class="text-slate-600 group-hover:text-teal-400">›</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="flex-1 flex flex-col min-w-0 relative">
+        
+        <header class="px-8 py-4 flex items-center justify-between bg-white/60 backdrop-blur-md border-b border-sky-100 sticky top-0 z-30">
+            <div class="flex items-center space-x-6">
+                <button id="btn-open" onclick="toggleSidebar()" class="hidden flex flex-col space-y-1 p-2 hover:bg-white/50 rounded-lg transition-all">
+                    <div class="w-7 h-1 bg-sky-400"></div>
+                    <div class="w-7 h-1 bg-sky-400"></div>
+                    <div class="w-7 h-1 bg-sky-400"></div>
+                </button>
+                <h1 class="text-xl font-black italic tracking-tighter text-slate-900 uppercase">Log Pelanggaran</h1>
+            </div>
+            <div class="text-right">
+                <p class="text-xs font-bold text-slate-900 uppercase tracking-widest leading-none">Evidence Records</p>
+                <p class="text-[9px] text-teal-600 font-bold uppercase tracking-tighter mt-1">PANTOPELTERA System v1.0</p>
+            </div>
+        </header>
+
+        <div class="flex-1 flex p-6 gap-6 overflow-hidden">
+            
+            <div class="w-80 flex flex-col glass-card rounded-[2.5rem] p-6 shadow-xl overflow-hidden">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Daftar Deteksi</p>
+                
+                <div class="flex-1 overflow-y-auto pr-2 space-y-3 custom-scroll">
+                    {% for item in data %}
+                    <button onclick="showDetail('{{ item.jenis }}', '{{ item.waktu }}', '{{ item.img }}')" 
+                            class="w-full text-left p-4 rounded-2xl bg-white/50 border border-white hover:bg-white hover:shadow-lg transition-all group">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-red-500 text-xs">🚫</span>
+                            <span class="text-[8px] font-bold text-teal-600 uppercase bg-teal-50 px-2 py-0.5 rounded">NEW</span>
+                        </div>
+                        <p class="text-xs font-black text-slate-900 truncate uppercase">{{ item.jenis }}</p>
+                        <p class="text-[9px] text-slate-500 mt-1 font-bold">{{ item.waktu }}</p>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col glass-card rounded-[2.5rem] p-4 shadow-2xl relative overflow-hidden items-center justify-center">
+                
+                <div id="placeholder-text" class="text-center space-y-4">
+                    <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-4xl">📸</div>
+                    <h3 class="text-lg font-bold text-slate-800">Bukti Visual</h3>
+                    <p class="text-xs text-slate-500 max-w-xs mx-auto">Pilih data pelanggaran di sisi kiri untuk melihat rekaman gambar.</p>
+                </div>
+
+                <div id="detail-container" class="hidden w-full h-full flex flex-col">
+                    <div class="flex justify-between items-center p-4">
+                        <div>
+                            <h2 id="detail-title" class="text-2xl font-black text-slate-900 tracking-tighter uppercase"></h2>
+                            <p id="detail-time" class="text-[10px] font-bold text-slate-500 tracking-widest mt-1"></p>
+                        </div>
+                        <button class="bg-[#0f172a] text-white px-6 py-2.5 rounded-full text-[10px] font-black tracking-widest shadow-xl hover:bg-teal-600 transition-all uppercase">Unduh Bukti</button>
+                    </div>
+                    
+                    <div class="flex-1 relative rounded-[2rem] overflow-hidden border-4 border-white shadow-2xl bg-black mx-2 mb-2">
+                        <img id="detail-img" src="" alt="Bukti Pelanggaran" class="w-full h-full object-cover">
+                        <div class="absolute bottom-6 left-6 bg-black/60 backdrop-blur-md text-white text-[10px] px-4 py-1.5 rounded-full font-bold border border-white/20">
+                            VERIFIED EVIDENCE LOG • ITERA
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const btnOpen = document.getElementById('btn-open');
+            sidebar.classList.toggle('sidebar-closed');
+            
+            if (sidebar.classList.contains('sidebar-closed')) {
+                btnOpen.classList.remove('hidden');
+            } else {
+                btnOpen.classList.add('hidden');
+            }
+        }
+
+        function showDetail(jenis, waktu, imgName) {
+            document.getElementById('placeholder-text').classList.add('hidden');
+            document.getElementById('detail-container').classList.remove('hidden');
+            document.getElementById('detail-title').innerText = jenis;
+            document.getElementById('detail-time').innerText = "TIMESTAMP: " + waktu;
+            document.getElementById('detail-img').src = "/static/" + imgName;
+        }
+    </script>
+</body>
+</html>

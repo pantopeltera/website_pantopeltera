@@ -1,0 +1,4 @@
+Flask
+pyrebase4
+cloudinary
+python-dotenv

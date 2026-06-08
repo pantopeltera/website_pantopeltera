@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Monitoring - PANTOPELTERA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Mengubah font dasar menjadi Inter */
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Sidebar transition mengikuti pelanggaran.html */
+        #sidebar { transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .sidebar-closed { transform: translateX(-100%); position: absolute; }
+        
+        .bg-main { background-color: #f1f5f9; }
+        
+        /* Card utama Monitoring */
+        .main-card { 
+            background: white;
+            border-radius: 40px;
+            box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+        
+        .stream-viewport {
+            background-color: #0f172a;
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body class="bg-main text-slate-800 flex h-screen overflow-hidden">
+
+    <div id="sidebar" class="w-72 bg-[#0f172a] text-white p-8 flex flex-col space-y-8 z-50 shadow-2xl shrink-0 h-screen transition-all">
+        <div class="flex justify-between items-center">
+            <div class="flex items-center space-x-2 text-teal-400">
+                <div class="w-2 h-2 bg-teal-400 rounded-full animate-pulse"></div>
+                <span class="text-[10px] font-bold tracking-[0.2em] uppercase">PANTOPELTERA</span>
+            </div>
+            <button onclick="toggleSidebar()" class="text-slate-400 hover:text-white text-2xl font-light">&times;</button>
+        </div>
+
+        <nav class="flex-1 space-y-2">
+            <p class="text-slate-500 text-[10px] font-bold tracking-widest uppercase mb-4">Main Menu</p>
+            <a href="/dashboard" class="flex items-center space-x-3 p-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all">
+                <span>🏠</span> <span>Dashboard</span>
+            </a>
+            <a href="/monitoring" class="flex items-center space-x-3 p-3 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20 shadow-lg">
+                <span>📹</span> <span class="font-bold">Live Monitoring</span>
+            </a>
+            <a href="/pelanggaran" class="flex items-center space-x-3 p-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all">
+                <span>🚨</span> <span>Pelanggaran</span>
+            </a>
+            <a href="/grafik" class="flex items-center space-x-3 p-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all">
+                <span>📊</span> <span>Statistik</span>
+            </a>
+        </nav>
+
+        <div class="pt-8 border-t border-slate-800">
+            <a href="/profil" class="flex items-center space-x-3 p-3 bg-slate-800/50 rounded-2xl border border-slate-700/50 hover:bg-slate-700/50 group transition-all">
+                <div class="w-10 h-10 bg-gradient-to-tr from-teal-500 to-emerald-400 rounded-lg flex items-center justify-center font-bold text-white shadow-lg group-hover:scale-105 transition-transform">A</div>
+                <div class="flex-1">
+                    <p class="text-sm font-bold text-white">Admin ITERA</p>
+                    <p class="text-[10px] text-slate-500 italic">Bundaran Asrama</p>
+                </div>
+                <span class="text-slate-600 group-hover:text-teal-400">›</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="flex-1 flex flex-col min-w-0 relative">
+        
+        <header class="px-12 py-8 flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <button id="btn-open" onclick="toggleSidebar()" class="hidden flex flex-col space-y-1 p-2 hover:bg-white/50 rounded-lg transition-all">
+                    <div class="w-7 h-1 bg-sky-400"></div>
+                    <div class="w-7 h-1 bg-sky-400"></div>
+                    <div class="w-7 h-1 bg-sky-400"></div>
+                </button>
+                <h2 class="text-2xl font-black italic uppercase tracking-tighter text-slate-800">Live Monitoring</h2>
+            </div>
+            
+            <div class="text-right">
+                <p class="text-[10px] font-bold text-slate-400 tracking-widest uppercase">PANTOPELTERA</p>
+                <p class="text-[10px] font-bold text-teal-500 tracking-widest uppercase mt-0.5">Pantau Pelanggaran Itera</p>
+            </div>
+        </header>
+
+        <main class="flex-1 px-12 pb-12">
+            <div class="main-card w-full h-full relative">
+                
+                <div class="absolute inset-0 z-20 pointer-events-none p-8 flex flex-col justify-between">
+                    <div class="flex justify-between items-start">
+                        <div class="flex flex-col space-y-2">
+                            <div class="flex items-center space-x-2 bg-red-600 px-3 py-1.5 rounded-full shadow-lg w-fit">
+                                <div class="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                                <span class="text-[10px] font-black text-white uppercase tracking-wider">LIVE</span>
+                            </div>
+                            <div class="bg-black/40 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 w-fit">
+                                <p class="text-[9px] font-bold text-teal-400 uppercase tracking-widest">Camera</p>
+                                <p class="text-xs font-bold text-white uppercase">BUNDARAN ASRAMA</p>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-black/40 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 text-right">
+                            <p id="realtime-clock" class="text-sm font-mono font-bold text-white tracking-wider">00:00:00</p>
+                            <p id="realtime-date" class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">1 Januari 1970</p>
+                        </div>
+                        
+                    </div>
+ 
+                </div>
+
+                <div class="stream-viewport">
+                    <div class="text-center">
+                        <div class="mb-4 flex justify-center opacity-20">
+                            <span class="text-6xl">📹</span>
+                        </div>
+                        <p class="text-slate-500 font-mono text-[10px] tracking-[0.4em] uppercase">Initialising Raspberry Pi Stream...</p>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const btnOpen = document.getElementById('btn-open');
+            sidebar.classList.toggle('sidebar-closed');
+            
+            // Logika sembunyi/muncul tombol sesuai pelanggaran.html
+            if (sidebar.classList.contains('sidebar-closed')) {
+                btnOpen.classList.remove('hidden');
+            } else {
+                btnOpen.classList.add('hidden');
+            }
+        }
+
+        function updateClock() {
+            const now = new Date();
+            
+            // Format Jam (HH:MM:SS)
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('realtime-clock').textContent = `${hours}:${minutes}:${seconds}`;
+            
+            // Format Tanggal Indonesia
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            const dateString = now.toLocaleDateString('id-ID', options);
+            document.getElementById('realtime-date').textContent = dateString;
+        }
+
+        // Jalankan setiap 1 detik
+        setInterval(updateClock, 1000);
+        updateClock(); // Jalankan langsung saat page di-load
+    </script>
+</body>
+</html>

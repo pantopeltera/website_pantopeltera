@@ -1,0 +1,42 @@
+# --- Python & Virtual Environment ---
+.venv/
+venv/
+ENV/
+env/
+bin/
+lib/
+include/
+pip-selfcheck.json
+
+# --- Environment Variables (Kredensial Rahasia) ---
+.env
+.env.local
+.env.*.local
+
+# --- Cache & Kompilasi Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.htmlcov/
+htmlcov/
+
+# --- IDE & Text Editor ---
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# --- Sistem Operasi (File Sampah Otomatis) ---
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# --- File Log & Upload Lokal ---
+*.log
+logs/
+media/
