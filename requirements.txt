@@ -2,3 +2,4 @@ Pyrebase4==4.8.0
 python-dotenv
 cloudinary
 flask
+setuptools
