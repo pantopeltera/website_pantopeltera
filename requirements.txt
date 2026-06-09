@@ -1,5 +1,4 @@
-setuptools
-Pyrebase4==4.8.0
+firebase-admin
 python-dotenv
 cloudinary
 flask
