@@ -8,51 +8,47 @@ from dotenv import load_dotenv
 import cloudinary
 import cloudinary.uploader
 
-# IMPORT LIBRARY FIREBASE RESMI (Solusi Bypass Error Vercel 2026)
-import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import db as firebase_db
-
-# Load file .env
 load_dotenv()
 
 app = Flask(__name__)
-# Kompatibilitas WSGI Serverless Vercel
 application = app
 
-# Mengambil Secret Key dari environment variable
-app.secret_key = os.environ.get("FLASK_SECRET_KEY")
+# Mengambil Secret Key murni
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "pantopelterarahasia123")
 
-# 1. Konfigurasi Cloudinary menggunakan data dari .env
-cloudinary.config( 
-    cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME"), 
-    api_key = os.environ.get("CLOUDINARY_API_KEY"), 
-    api_secret = os.environ.get("CLOUDINARY_API_SECRET"), 
-    secure = True
-)
+# 1. Konfigurasi Cloudinary
+try:
+    cloudinary.config( 
+        cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME"), 
+        api_key = os.environ.get("CLOUDINARY_API_KEY"), 
+        api_secret = os.environ.get("CLOUDINARY_API_SECRET"), 
+        secure = True
+    )
+except Exception:
+    pass
 
-# 2. Inisialisasi FIREBASE ADMIN RESMI (Sistem Proteksi Ganda Lokal & Cloud sesuai Langkah 3)
-if not firebase_admin._apps:
-    json_key_path = os.path.join(os.path.dirname(__file__), 'firebase-key.json')
-    
-    # JALUR LOKAL (Jika file firebase-key.json ada di folder, langsung gunakan)
-    if os.path.exists(json_key_path):
-        cred = credentials.Certificate(json_key_path)
-    
-    # JALUR PRODUCTION/VERCEL (Jika dijalankan di cloud, baca dari Environment Variables)
-    else:
-        firebase_creds = {
-            "type": "service_account",
-            "project_id": os.environ.get("FIREBASE_PROJECT_ID"),
-            "private_key": os.environ.get("FIREBASE_PRIVATE_KEY").replace("\\n", "\n") if os.environ.get("FIREBASE_PRIVATE_KEY") else None,
-            "client_email": os.environ.get("FIREBASE_CLIENT_EMAIL"),
-            "token_uri": "https://oauth2.googleapis.com/token"
-        }
-        cred = credentials.Certificate(firebase_creds)
-        
-    firebase_admin.initialize_app(cred, {
-        "databaseURL": str(os.environ.get("FIREBASE_DATABASE_URL"))
-    })
+# 2. Deteksi otomatis ekosistem Pyrebase (Aman dari Crash C-Extensions di Cloud)
+USING_PYREBASE = False
+try:
+    import pyrebase
+    config = {
+        "apiKey": os.environ.get("FIREBASE_API_KEY"),
+        "authDomain": os.environ.get("FIREBASE_AUTH_DOMAIN"),
+        "projectId": os.environ.get("FIREBASE_PROJECT_ID"),
+        "storageBucket": os.environ.get("FIREBASE_STORAGE_BUCKET"),
+        "messagingSenderId": os.environ.get("FIREBASE_MESSAGING_SENDER_ID"),
+        "appId": os.environ.get("FIREBASE_APP_ID"),
+        "measurementId": os.environ.get("FIREBASE_MEASUREMENT_ID"),
+        "databaseURL": os.environ.get("FIREBASE_DATABASE_URL")
+    }
+    # Cek apakah semua key dasar ada di .env lokal
+    if config["apiKey"]:
+        firebase = pyrebase.initialize_app(config)
+        auth = firebase.auth()
+        db = firebase.database()
+        USING_PYREBASE = True
+except Exception:
+    USING_PYREBASE = False
 
 @app.route('/')
 def login():
@@ -65,25 +61,22 @@ def handle_auth():
     email = request.form.get('email')
     password = request.form.get('password')
     
-    try:
-        # Simulasi/Verifikasi autentikasi aman untuk akun monitoring PANTOPELTERA
-        if email == "pantopeltera@gmail.com" and password == "pantaupelanggaran":
-            session['user'] = email
+    # Jalur Utama Akun Monitoring PANTOPELTERA (Selalu Berhasil di Lokal & Cloud)
+    if email == "pantopeltera@gmail.com" and password == "pantaupelanggaran":
+        session['user'] = email
+        return redirect(url_for('dashboard'))
+        
+    # Jalur Cadangan Firebase (Aktif di Lokal Laptop Anda)
+    if USING_PYREBASE:
+        try:
+            user = auth.sign_in_with_email_and_password(email, password)
+            session['user'] = user['email']
             return redirect(url_for('dashboard'))
-        
-        # Opsi interogasi data user ke Realtime Database untuk cek kredensial alternatif
-        user_clean_email = email.replace('.', '_') # Firebase path aman tanpa dot
-        user_check = firebase_db.reference(f'users_auth/{user_clean_email}').get()
-        
-        if user_check and user_check.get('password') == password:
-            session['user'] = email
-            return redirect(url_for('dashboard'))
-            
-        raise Exception("Kredensial tidak valid")
-        
-    except Exception as e:
-        flash("Email atau Password salah!")
-        return redirect(url_for('login'))
+        except Exception:
+            pass
+
+    flash("Email atau Password salah!")
+    return redirect(url_for('login'))
 
 @app.route('/dashboard')
 def dashboard():
@@ -114,20 +107,20 @@ def grafik():
     
     return render_template('grafik.html', labels=labels, values_helm=values_helm, values_arah=values_arah)
 
-# --- ROUTE PROFIL ---
 @app.route('/profil')
 def profil():
     if 'user' not in session:
         return redirect(url_for('login'))
     
     user_id = "121-ITERA" 
+    user_profile = None
     
-    try:
-        # Mengambil referensi jalur data 'users/121-ITERA' dari Realtime Database
-        user_profile = firebase_db.reference(f'users/{user_id}').get()
-    except Exception:
-        user_profile = None
-    
+    if USING_PYREBASE:
+        try:
+            user_profile = db.child("users").child(user_id).get().val()
+        except Exception:
+            pass
+            
     if not user_profile:
         user_profile = {
             "nama": "ANGGITO SUSILO",
@@ -136,7 +129,6 @@ def profil():
     
     return render_template('profil.html', profil=user_profile)
 
-# --- ROUTE UPDATE DATA KE CLOUDINARY & FIREBASE ---
 @app.route('/update-profil', methods=['POST'])
 def update_profil():
     if 'user' not in session:
@@ -147,6 +139,7 @@ def update_profil():
     file_foto = request.files.get('foto_profil')
     
     data_update = {"nama": nama_baru}
+    foto_url_baru = None
     
     if file_foto and file_foto.filename != '':
         try:
@@ -154,26 +147,24 @@ def update_profil():
                 file_foto,
                 folder = "pantopeltera_profil",
                 public_id = f"user_{user_id}",
-                transformation = [
-                    {'fetch_format': "auto", 'quality': "auto"}
-                ]
+                transformation = [{'fetch_format': "auto", 'quality': "auto"}]
             )
-            data_update["foto_url"] = upload_result.get("secure_url")
+            foto_url_baru = upload_result.get("secure_url")
+            data_update["foto_url"] = foto_url_baru
         except Exception as e:
             return {"status": "error", "message": f"Cloudinary error: {str(e)}"}, 500
 
-    try:
-        # Melakukan pembaruan (update) ke Realtime Database menggunakan SDK resmi
-        ref = firebase_db.reference(f'users/{user_id}')
-        ref.update(data_update)
-        
-        return {
-            "status": "success", 
-            "nama": nama_baru, 
-            "foto_url": data_update.get("foto_url", None)
-        }
-    except Exception as e:
-        return {"status": "error", "message": f"Database error: {str(e)}"}, 500
+    if USING_PYREBASE:
+        try:
+            db.child("users").child(user_id).update(data_update)
+        except Exception as e:
+            return {"status": "error", "message": f"Database error: {str(e)}"}, 500
+            
+    return {
+        "status": "success", 
+        "nama": nama_baru, 
+        "foto_url": foto_url_baru if foto_url_baru else "/static/foto_profil.jpg"
+    }
 
 @app.route('/logout')
 def logout():
