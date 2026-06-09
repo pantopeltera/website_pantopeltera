@@ -21,7 +21,7 @@ app = Flask(__name__)
 application = app
 
 # Mengambil Secret Key dari environment variable
-app.secret_key = os.environ.get("FLASK_SECRET_KEY")
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "pantopeltera_super_rahasia_2026")
 
 # 1. Konfigurasi Cloudinary menggunakan data dari .env
 cloudinary.config( 
@@ -31,27 +31,27 @@ cloudinary.config(
     secure = True
 )
 
-# 2. Inisialisasi FIREBASE ADMIN RESMI
-# Menggunakan data credential SDK yang di-mapping aman dari environment variables
+# 2. Inisialisasi FIREBASE ADMIN RESMI (Sistem Proteksi Ganda Lokal & Cloud sesuai Langkah 3)
 if not firebase_admin._apps:
-    # Memetakan struktur service account credential secara dinamis
-    firebase_creds = {
-        "type": "service_account",
-        "project_id": os.environ.get("FIREBASE_PROJECT_ID"),
-        "private_key": os.environ.get("FIREBASE_PRIVATE_KEY").replace("\\n", "\n") if os.environ.get("FIREBASE_PRIVATE_KEY") else None,
-        "client_email": os.environ.get("FIREBASE_CLIENT_EMAIL"),
-        "token_uri": "https://oauth2.googleapis.com/token"
-    }
+    json_key_path = os.path.join(os.path.dirname(__file__), 'firebase-key.json')
     
-    # Jika private_key tidak ada di .env (misal saat dev awal), gunakan fallback credential default
-    if not firebase_creds["private_key"]:
-        # Fallback ini opsional jika Anda mengizinkan akses database publik tanpa berkas kunci
-        cred = credentials.AnonymousCredentials() if os.environ.get("FLASK_ENV") == "development" else None
+    # JALUR LOKAL (Jika file firebase-key.json ada di folder, langsung gunakan)
+    if os.path.exists(json_key_path):
+        cred = credentials.Certificate(json_key_path)
+    
+    # JALUR PRODUCTION/VERCEL (Jika dijalankan di cloud, baca dari Environment Variables)
     else:
+        firebase_creds = {
+            "type": "service_account",
+            "project_id": os.environ.get("FIREBASE_PROJECT_ID"),
+            "private_key": os.environ.get("FIREBASE_PRIVATE_KEY").replace("\\n", "\n") if os.environ.get("FIREBASE_PRIVATE_KEY") else None,
+            "client_email": os.environ.get("FIREBASE_CLIENT_EMAIL"),
+            "token_uri": "https://oauth2.googleapis.com/token"
+        }
         cred = credentials.Certificate(firebase_creds)
         
     firebase_admin.initialize_app(cred, {
-        "databaseURL": os.environ.get("FIREBASE_DATABASE_URL")
+        "databaseURL": str(os.environ.get("FIREBASE_DATABASE_URL"))
     })
 
 @app.route('/')
@@ -65,12 +65,9 @@ def handle_auth():
     email = request.form.get('email')
     password = request.form.get('password')
     
-    # KARENA SDK ADMIN BERFOKUS PADA VALIDASI BACKEND & DATABASE:
-    # Kita buat validasi login aman berbasis credential atau fallback statis admin 
-    # yang terintegrasi dengan database users Anda.
     try:
         # Simulasi/Verifikasi autentikasi aman untuk akun monitoring PANTOPELTERA
-        if email == "admin@pantopeltera.com" and password == "admin123":
+        if email == "pantopeltera@gmail.com" and password == "pantaupelanggaran":
             session['user'] = email
             return redirect(url_for('dashboard'))
         
@@ -117,7 +114,7 @@ def grafik():
     
     return render_template('grafik.html', labels=labels, values_helm=values_helm, values_arah=values_arah)
 
-# --- ROUTE PROFIL (Telah Dimodifikasi Menggunakan Firebase-Admin) ---
+# --- ROUTE PROFIL ---
 @app.route('/profil')
 def profil():
     if 'user' not in session:
@@ -139,7 +136,7 @@ def profil():
     
     return render_template('profil.html', profil=user_profile)
 
-# --- ROUTE UPDATE DATA KE CLOUDINARY & FIREBASE (Telah Dimodifikasi) ---
+# --- ROUTE UPDATE DATA KE CLOUDINARY & FIREBASE ---
 @app.route('/update-profil', methods=['POST'])
 def update_profil():
     if 'user' not in session:
