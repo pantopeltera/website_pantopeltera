@@ -21,7 +21,7 @@ app = Flask(__name__)
 application = app
 
 # Mengambil Secret Key dari environment variable
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "pantopeltera_super_rahasia_2026")
+app.secret_key = os.environ.get("FLASK_SECRET_KEY")
 
 # 1. Konfigurasi Cloudinary menggunakan data dari .env
 cloudinary.config( 
