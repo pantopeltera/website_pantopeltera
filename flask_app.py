@@ -107,6 +107,7 @@ def grafik():
     
     return render_template('grafik.html', labels=labels, values_helm=values_helm, values_arah=values_arah)
 
+# --- ROUTE PROFIL (Sudah Dimodifikasi Mengunci Tampilan Utama Vercel) ---
 @app.route('/profil')
 def profil():
     if 'user' not in session:
@@ -121,14 +122,16 @@ def profil():
         except Exception:
             pass
             
+    # Mengunci data default profil agar saat di-refresh di Vercel tidak kembali ke awal
     if not user_profile:
         user_profile = {
-            "nama": "ANGGITO SUSILO",
-            "foto_url": "/static/foto_profil.jpg"
+            "nama": "PANTOPELTERA",
+            "foto_url": "https://res.cloudinary.com/dsrbo4fgu/image/upload/v1/pantopeltera_profil/user_121-ITERA"
         }
     
     return render_template('profil.html', profil=user_profile)
 
+# --- ROUTE UPDATE DATA KE CLOUDINARY & FIREBASE ---
 @app.route('/update-profil', methods=['POST'])
 def update_profil():
     if 'user' not in session:
@@ -163,7 +166,7 @@ def update_profil():
     return {
         "status": "success", 
         "nama": nama_baru, 
-        "foto_url": foto_url_baru if foto_url_baru else "/static/foto_profil.jpg"
+        "foto_url": foto_url_baru if foto_url_baru else "https://res.cloudinary.com/dsrbo4fgu/image/upload/v1/pantopeltera_profil/user_121-ITERA"
     }
 
 @app.route('/logout')
