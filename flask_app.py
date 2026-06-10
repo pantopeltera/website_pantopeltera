@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import os
-import requests  # Ditambahkan untuk menembak REST API Firebase di Vercel cloud
+import requests  # Digunakan untuk menembak REST API Firebase di Vercel cloud
 from datetime import datetime
 
 # Import library untuk membaca file .env
@@ -83,11 +83,54 @@ def dashboard():
         return redirect(url_for('login'))
     return render_template('dashboard.html')
 
+# --- ROUTE RENDERING HALAMAN LOG PELANGGARAN ---
 @app.route('/pelanggaran')
 def pelanggaran():
     if 'user' not in session:
         return redirect(url_for('login'))
+    # Halaman html sekarang akan langsung dimuat, data list akan ditarik oleh JavaScript Fetch secara real-time
     return render_template('pelanggaran.html', data=[]) 
+
+# --- ROUTE API DATA DAFTAR DETEKSI REAL-TIME UNTUK PELANGGARAN.HTML ---
+@app.route('/api/list-pelanggaran')
+def api_list_pelanggaran():
+    daftar_pelanggaran = []
+    semua_pelanggaran = None
+
+    # 1. KONDISI LOKAL LAPTOP: Ambil data dari library Pyrebase
+    if USING_PYREBASE:
+        try:
+            semua_pelanggaran = db.child("all_pelanggaran").get().val()
+        except Exception as e:
+            print("Gagal mengambil data list lokal:", str(e))
+            
+    # 2. KONDISI CLOUD VERCEL: Menggunakan Firebase REST API via requests
+    else:
+        try:
+            db_url = os.environ.get("FIREBASE_DATABASE_URL")
+            if db_url:
+                if db_url.endswith('/'):
+                    db_url = db_url[:-1]
+                response = requests.get(f"{db_url}/all_pelanggaran.json", timeout=5)
+                if response.status_code == 200:
+                    semua_pelanggaran = response.json()
+        except Exception as e:
+            print("Gagal mengambil data list REST API Vercel:", str(e))
+
+    # 3. PROSES STRUKTUR DATA
+    if semua_pelanggaran:
+        for key, item in semua_pelanggaran.items():
+            if not item:
+                continue
+            daftar_pelanggaran.append({
+                "jenis": item.get("jenis_pelanggaran", "Pelanggaran"),
+                "waktu": item.get("waktu", "Waktu tidak diketahui"),
+                "img": item.get("foto_url", "https://res.cloudinary.com/dsrbo4fgu/image/upload/v1/pantopeltera_profil/user_121-ITERA")
+            })
+        # Balik urutan list agar log terbaru berada di paling atas panel kiri
+        daftar_pelanggaran.reverse()
+
+    return jsonify(daftar_pelanggaran)
 
 @app.route('/monitoring')
 def monitoring():
@@ -106,60 +149,45 @@ def grafik():
 @app.route('/api/statistik-pelanggaran')
 def api_statistik_pelanggaran():
     labels = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"]
-    
-    # Inisialisasi array hitungan dari angka 0
     values_helm = [0, 0, 0, 0, 0]
     values_arah = [0, 0, 0, 0, 0]
     
-    # Pemetaan nama hari ke indeks array data grafik
     hari_mapping = {
-        "Monday": 0,
-        "Tuesday": 1,
-        "Wednesday": 2,
-        "Thursday": 3,
-        "Friday": 4
+        "Monday": 0, "Tuesday": 1, "Wednesday": 2, "Thursday": 3, "Friday": 4
     }
 
     semua_pelanggaran = None
 
-    # 1. KONDISI LOKAL LAPTOP: Menghitung data pelanggaran murni dari library Pyrebase
     if USING_PYREBASE:
         try:
             semua_pelanggaran = db.child("all_pelanggaran").get().val()
         except Exception as e:
             print("Gagal mengambil statistik database lokal (Pyrebase):", str(e))
-            
-    # 2. KONDISI CLOUD VERCEL: Menggunakan Firebase REST API via library requests (Anti-Crash 500)
     else:
         try:
             db_url = os.environ.get("FIREBASE_DATABASE_URL")
             if db_url:
-                # Membersihkan / merapikan garis miring URL database dan menambahkan format .json di ujungnya
                 if db_url.endswith('/'):
                     db_url = db_url[:-1]
-                
                 response = requests.get(f"{db_url}/all_pelanggaran.json", timeout=5)
                 if response.status_code == 200:
                     semua_pelanggaran = response.json()
         except Exception as e:
             print("Gagal mengambil data dari REST API Firebase di Vercel:", str(e))
 
-    # 3. PROSES PEMETAAN DATA (Berlaku Sempurna untuk Jalur Lokal maupun Vercel Online)
     if semua_pelanggaran:
         for key, item in semua_pelanggaran.items():
             if not item:
                 continue
-            jenis = item.get("jenis_pelanggaran")  # Contoh data: "Tidak Menggunakan Helm" / "Melawan Arah"
-            waktu_str = item.get("waktu")          # Contoh data: "2026-06-11 14:20:00"
+            jenis = item.get("jenis_pelanggaran")
+            waktu_str = item.get("waktu")
             
             try:
-                # Parsing string waktu untuk mendapatkan nama hari bahasa Inggris
                 tanggal_obj = datetime.strptime(waktu_str, "%Y-%m-%d %H:%M:%S")
                 nama_hari = tanggal_obj.strftime("%A")
                 
                 if nama_hari in hari_mapping:
                     indeks = hari_mapping[nama_hari]
-                    
                     if jenis == "Tidak Menggunakan Helm":
                         values_helm[indeks] += 1
                     elif jenis == "Melawan Arah":
