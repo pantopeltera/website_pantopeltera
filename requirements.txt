@@ -1,5 +1,4 @@
-setuptools==65.5.1
-Pyrebase4==4.8.0
 python-dotenv
 cloudinary
 flask
+requests

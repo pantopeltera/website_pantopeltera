@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import os
+import requests  # Ditambahkan untuk menembak REST API Firebase di Vercel cloud
 from datetime import datetime
 
 # Import library untuk membaca file .env
@@ -99,7 +100,6 @@ def monitoring():
 def grafik():
     if 'user' not in session:
         return redirect(url_for('login'))
-    # Halaman html sekarang akan langsung dimuat, data akan ditarik oleh JavaScript Fetch secara real-time
     return render_template('grafik.html')
 
 # --- ROUTE API DATA REAL-TIME UNTUK CHART.JS ---
@@ -120,38 +120,52 @@ def api_statistik_pelanggaran():
         "Friday": 4
     }
 
-    # 1. KONDISI LOKAL: Menghitung data pelanggaran real-time dari Firebase
+    semua_pelanggaran = None
+
+    # 1. KONDISI LOKAL LAPTOP: Menghitung data pelanggaran murni dari library Pyrebase
     if USING_PYREBASE:
         try:
-            # Mengambil data dari node "all_pelanggaran" (sesuaikan dengan nama node Firebase Anda)
             semua_pelanggaran = db.child("all_pelanggaran").get().val()
-            
-            if semua_pelanggaran:
-                for key, item in semua_pelanggaran.items():
-                    jenis = item.get("jenis_pelanggaran")  # Contoh data: "Tidak Menggunakan Helm" / "Melawan Arah"
-                    waktu_str = item.get("waktu")          # Contoh data: "2026-06-11 14:20:00"
-                    
-                    try:
-                        # Parsing string waktu untuk mendapatkan nama hari
-                        tanggal_obj = datetime.strptime(waktu_str, "%Y-%m-%d %H:%M:%S")
-                        nama_hari = tanggal_obj.strftime("%A")
-                        
-                        if nama_hari in hari_mapping:
-                            indeks = hari_mapping[nama_hari]
-                            
-                            if jenis == "Tidak Menggunakan Helm":
-                                values_helm[indeks] += 1
-                            elif jenis == "Melawan Arah":
-                                values_arah[indeks] += 1
-                    except Exception:
-                        pass
         except Exception as e:
-            print("Gagal mengambil statistik database:", str(e))
+            print("Gagal mengambil statistik database lokal (Pyrebase):", str(e))
             
-    # 2. KONDISI CLOUD VERCEL: Mengosongkan data grafik default (0 Semua) agar tidak bergerak acak
+    # 2. KONDISI CLOUD VERCEL: Menggunakan Firebase REST API via library requests (Anti-Crash 500)
     else:
-        values_helm = [0, 0, 0, 0, 0]
-        values_arah = [0, 0, 0, 0, 0]
+        try:
+            db_url = os.environ.get("FIREBASE_DATABASE_URL")
+            if db_url:
+                # Membersihkan / merapikan garis miring URL database dan menambahkan format .json di ujungnya
+                if db_url.endswith('/'):
+                    db_url = db_url[:-1]
+                
+                response = requests.get(f"{db_url}/all_pelanggaran.json", timeout=5)
+                if response.status_code == 200:
+                    semua_pelanggaran = response.json()
+        except Exception as e:
+            print("Gagal mengambil data dari REST API Firebase di Vercel:", str(e))
+
+    # 3. PROSES PEMETAAN DATA (Berlaku Sempurna untuk Jalur Lokal maupun Vercel Online)
+    if semua_pelanggaran:
+        for key, item in semua_pelanggaran.items():
+            if not item:
+                continue
+            jenis = item.get("jenis_pelanggaran")  # Contoh data: "Tidak Menggunakan Helm" / "Melawan Arah"
+            waktu_str = item.get("waktu")          # Contoh data: "2026-06-11 14:20:00"
+            
+            try:
+                # Parsing string waktu untuk mendapatkan nama hari bahasa Inggris
+                tanggal_obj = datetime.strptime(waktu_str, "%Y-%m-%d %H:%M:%S")
+                nama_hari = tanggal_obj.strftime("%A")
+                
+                if nama_hari in hari_mapping:
+                    indeks = hari_mapping[nama_hari]
+                    
+                    if jenis == "Tidak Menggunakan Helm":
+                        values_helm[indeks] += 1
+                    elif jenis == "Melawan Arah":
+                        values_arah[indeks] += 1
+            except Exception:
+                pass
 
     return jsonify({
         "labels": labels,
