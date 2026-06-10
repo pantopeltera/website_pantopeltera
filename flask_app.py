@@ -41,7 +41,6 @@ try:
         "measurementId": os.environ.get("FIREBASE_MEASUREMENT_ID"),
         "databaseURL": os.environ.get("FIREBASE_DATABASE_URL")
     }
-    # Cek apakah semua key dasar ada di .env lokal
     if config["apiKey"]:
         firebase = pyrebase.initialize_app(config)
         auth = firebase.auth()
@@ -61,12 +60,10 @@ def handle_auth():
     email = request.form.get('email')
     password = request.form.get('password')
     
-    # Jalur Utama Akun Monitoring PANTOPELTERA (Selalu Berhasil di Lokal & Cloud)
     if email == "pantopeltera@gmail.com" and password == "pantaupelanggaran":
         session['user'] = email
         return redirect(url_for('dashboard'))
         
-    # Jalur Cadangan Firebase (Aktif di Lokal Laptop Anda)
     if USING_PYREBASE:
         try:
             user = auth.sign_in_with_email_and_password(email, password)
@@ -107,7 +104,7 @@ def grafik():
     
     return render_template('grafik.html', labels=labels, values_helm=values_helm, values_arah=values_arah)
 
-# --- ROUTE PROFIL (Sudah Dimodifikasi Mengunci Tampilan Utama Vercel) ---
+# --- ROUTE PROFIL (Menggunakan Penyimpanan Session Dinamis untuk Cloud) ---
 @app.route('/profil')
 def profil():
     if 'user' not in session:
@@ -116,22 +113,23 @@ def profil():
     user_id = "121-ITERA" 
     user_profile = None
     
+    # 1. Jalur Utama Lokal (Membaca Firebase jika aktif)
     if USING_PYREBASE:
         try:
             user_profile = db.child("users").child(user_id).get().val()
         except Exception:
             pass
             
-    # Mengunci data default profil agar saat di-refresh di Vercel tidak kembali ke awal
+    # 2. Jalur Cadangan Cloud Vercel (Membaca data dinamis dari Session browser)
     if not user_profile:
         user_profile = {
-            "nama": "PANTOPELTERA",
-            "foto_url": "https://res.cloudinary.com/dsrbo4fgu/image/upload/v1/pantopeltera_profil/user_121-ITERA"
+            "nama": session.get('profile_name', "PANTOPELTERA"),
+            "foto_url": session.get('profile_foto', "https://res.cloudinary.com/dsrbo4fgu/image/upload/v1/pantopeltera_profil/user_121-ITERA")
         }
     
     return render_template('profil.html', profil=user_profile)
 
-# --- ROUTE UPDATE DATA KE CLOUDINARY & FIREBASE ---
+# --- ROUTE UPDATE DATA PROFIL ---
 @app.route('/update-profil', methods=['POST'])
 def update_profil():
     if 'user' not in session:
@@ -142,7 +140,9 @@ def update_profil():
     file_foto = request.files.get('foto_profil')
     
     data_update = {"nama": nama_baru}
-    foto_url_baru = None
+    
+    # Ambil foto lama dari session atau gunakan foto default jika belum pernah upload
+    foto_url_sekarang = session.get('profile_foto', "https://res.cloudinary.com/dsrbo4fgu/image/upload/v1/pantopeltera_profil/user_121-ITERA")
     
     if file_foto and file_foto.filename != '':
         try:
@@ -152,10 +152,14 @@ def update_profil():
                 public_id = f"user_{user_id}",
                 transformation = [{'fetch_format': "auto", 'quality': "auto"}]
             )
-            foto_url_baru = upload_result.get("secure_url")
-            data_update["foto_url"] = foto_url_baru
+            foto_url_sekarang = upload_result.get("secure_url")
+            data_update["foto_url"] = foto_url_sekarang
         except Exception as e:
             return {"status": "error", "message": f"Cloudinary error: {str(e)}"}, 500
+
+    # Simpan perubahan secara dinamis ke dalam Session browser (Mengunci data baru hasil input Anda)
+    session['profile_name'] = nama_baru
+    session['profile_foto'] = foto_url_sekarang
 
     if USING_PYREBASE:
         try:
@@ -166,12 +170,15 @@ def update_profil():
     return {
         "status": "success", 
         "nama": nama_baru, 
-        "foto_url": foto_url_baru if foto_url_baru else "https://res.cloudinary.com/dsrbo4fgu/image/upload/v1/pantopeltera_profil/user_121-ITERA"
+        "foto_url": foto_url_sekarang
     }
 
 @app.route('/logout')
 def logout():
     session.pop('user', None)
+    # Opsional: hapus baris di bawah jika ingin data profil tetap tersimpan walau sudah logout
+    session.pop('profile_name', None)
+    session.pop('profile_foto', None)
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
