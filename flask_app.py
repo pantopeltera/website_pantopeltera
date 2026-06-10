@@ -148,11 +148,10 @@ def api_statistik_pelanggaran():
         except Exception as e:
             print("Gagal mengambil statistik database:", str(e))
             
-    # 2. KONDISI CLOUD VERCEL: Simulasi interaktif acak agar demo web online tidak crash/statis
+    # 2. KONDISI CLOUD VERCEL: Mengosongkan data grafik default (0 Semua) agar tidak bergerak acak
     else:
-        import random
-        values_helm = [random.randint(5, 25) for _ in range(5)]
-        values_arah = [random.randint(2, 15) for _ in range(5)]
+        values_helm = [0, 0, 0, 0, 0]
+        values_arah = [0, 0, 0, 0, 0]
 
     return jsonify({
         "labels": labels,
