@@ -112,18 +112,14 @@
                             <p id="realtime-clock" class="text-sm font-mono font-bold text-white tracking-wider">00:00:00</p>
                             <p id="realtime-date" class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">1 Januari 1970</p>
                         </div>
-                        
                     </div>
- 
                 </div>
 
                 <div class="stream-viewport">
-                    <div class="text-center">
-                        <div class="mb-4 flex justify-center opacity-20">
-                            <span class="text-6xl">📹</span>
-                        </div>
-                        <p class="text-slate-500 font-mono text-[10px] tracking-[0.4em] uppercase">Initialising Raspberry Pi Stream...</p>
-                    </div>
+                    <video class="w-full h-full object-cover" autoplay loop muted playsinline>
+                        <source src="https://res.cloudinary.com/dsrbo4fgu/video/upload/v1/pantopeltera_assets/simulasi_deteksi_yolo.mp4" type="video/mp4">
+                        <p class="text-white text-xs">Browser Anda tidak mendukung tag video streaming.</p>
+                    </video>
                 </div>
 
             </div>
@@ -136,7 +132,6 @@
             const btnOpen = document.getElementById('btn-open');
             sidebar.classList.toggle('sidebar-closed');
             
-            // Logika sembunyi/muncul tombol sesuai pelanggaran.html
             if (sidebar.classList.contains('sidebar-closed')) {
                 btnOpen.classList.remove('hidden');
             } else {
