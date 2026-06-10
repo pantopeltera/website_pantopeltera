@@ -1,5 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import os
+from datetime import datetime
 
 # Import library untuk membaca file .env
 from dotenv import load_dotenv
@@ -93,18 +94,73 @@ def monitoring():
         return redirect(url_for('login'))
     return render_template('monitoring.html')
 
+# --- ROUTE RENDERING HALAMAN GRAFIK ---
 @app.route('/grafik')
 def grafik():
     if 'user' not in session:
         return redirect(url_for('login'))
-    
-    labels = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"]
-    values_helm = [10, 15, 8, 12, 20]
-    values_arah = [5, 10, 3, 8, 12]
-    
-    return render_template('grafik.html', labels=labels, values_helm=values_helm, values_arah=values_arah)
+    # Halaman html sekarang akan langsung dimuat, data akan ditarik oleh JavaScript Fetch secara real-time
+    return render_template('grafik.html')
 
-# --- ROUTE PROFIL (Menggunakan Penyimpanan Session Dinamis untuk Cloud) ---
+# --- ROUTE API DATA REAL-TIME UNTUK CHART.JS ---
+@app.route('/api/statistik-pelanggaran')
+def api_statistik_pelanggaran():
+    labels = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"]
+    
+    # Inisialisasi array hitungan dari angka 0
+    values_helm = [0, 0, 0, 0, 0]
+    values_arah = [0, 0, 0, 0, 0]
+    
+    # Pemetaan nama hari ke indeks array data grafik
+    hari_mapping = {
+        "Monday": 0,
+        "Tuesday": 1,
+        "Wednesday": 2,
+        "Thursday": 3,
+        "Friday": 4
+    }
+
+    # 1. KONDISI LOKAL: Menghitung data pelanggaran real-time dari Firebase
+    if USING_PYREBASE:
+        try:
+            # Mengambil data dari node "all_pelanggaran" (sesuaikan dengan nama node Firebase Anda)
+            semua_pelanggaran = db.child("all_pelanggaran").get().val()
+            
+            if semua_pelanggaran:
+                for key, item in semua_pelanggaran.items():
+                    jenis = item.get("jenis_pelanggaran")  # Contoh data: "Tidak Menggunakan Helm" / "Melawan Arah"
+                    waktu_str = item.get("waktu")          # Contoh data: "2026-06-11 14:20:00"
+                    
+                    try:
+                        # Parsing string waktu untuk mendapatkan nama hari
+                        tanggal_obj = datetime.strptime(waktu_str, "%Y-%m-%d %H:%M:%S")
+                        nama_hari = tanggal_obj.strftime("%A")
+                        
+                        if nama_hari in hari_mapping:
+                            indeks = hari_mapping[nama_hari]
+                            
+                            if jenis == "Tidak Menggunakan Helm":
+                                values_helm[indeks] += 1
+                            elif jenis == "Melawan Arah":
+                                values_arah[indeks] += 1
+                    except Exception:
+                        pass
+        except Exception as e:
+            print("Gagal mengambil statistik database:", str(e))
+            
+    # 2. KONDISI CLOUD VERCEL: Simulasi interaktif acak agar demo web online tidak crash/statis
+    else:
+        import random
+        values_helm = [random.randint(5, 25) for _ in range(5)]
+        values_arah = [random.randint(2, 15) for _ in range(5)]
+
+    return jsonify({
+        "labels": labels,
+        "values_helm": values_helm,
+        "values_arah": values_arah
+    })
+
+# --- ROUTE PROFIL ---
 @app.route('/profil')
 def profil():
     if 'user' not in session:
@@ -113,14 +169,12 @@ def profil():
     user_id = "121-ITERA" 
     user_profile = None
     
-    # 1. Jalur Utama Lokal (Membaca Firebase jika aktif)
     if USING_PYREBASE:
         try:
             user_profile = db.child("users").child(user_id).get().val()
         except Exception:
             pass
             
-    # 2. Jalur Cadangan Cloud Vercel (Membaca data dinamis dari Session browser)
     if not user_profile:
         user_profile = {
             "nama": session.get('profile_name', "PANTOPELTERA"),
@@ -140,8 +194,6 @@ def update_profil():
     file_foto = request.files.get('foto_profil')
     
     data_update = {"nama": nama_baru}
-    
-    # Ambil foto lama dari session atau gunakan foto default jika belum pernah upload
     foto_url_sekarang = session.get('profile_foto', "https://res.cloudinary.com/dsrbo4fgu/image/upload/v1/pantopeltera_profil/user_121-ITERA")
     
     if file_foto and file_foto.filename != '':
@@ -157,7 +209,6 @@ def update_profil():
         except Exception as e:
             return {"status": "error", "message": f"Cloudinary error: {str(e)}"}, 500
 
-    # Simpan perubahan secara dinamis ke dalam Session browser (Mengunci data baru hasil input Anda)
     session['profile_name'] = nama_baru
     session['profile_foto'] = foto_url_sekarang
 
@@ -176,7 +227,6 @@ def update_profil():
 @app.route('/logout')
 def logout():
     session.pop('user', None)
-    # Opsional: hapus baris di bawah jika ingin data profil tetap tersimpan walau sudah logout
     session.pop('profile_name', None)
     session.pop('profile_foto', None)
     return redirect(url_for('login'))
